@@ -1,0 +1,11 @@
+{
+  "name": "overlap",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "events": "node --disable-warning=ExperimentalWarning server/admin.js list",
+    "delete-event": "node --disable-warning=ExperimentalWarning server/admin.js delete"
+  }
+}
