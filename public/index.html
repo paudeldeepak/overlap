@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Overlap</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
 <style>
 /* Overprint: two see-through riso inks. Blue is you, pink is everyone else, and
    where they print on top of each other (every person free) you get the third colour. */
@@ -28,7 +25,7 @@
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
 *,*::before,*::after{box-sizing:inherit}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:Archivo,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   font-size:1rem;line-height:1.5;font-stretch:100%;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -106,6 +103,13 @@ input.etitle:focus{outline:none;box-shadow:0 2px 0 var(--blue)}
 @media (hover:hover){.tabs button:hover{color:var(--ink)}}
 .tabs button[aria-selected="true"]{color:var(--ink);font-weight:700}
 .namefield{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:12px 14px;font-size:1rem;margin-bottom:18px}
+/* who to compare: narrows the Together view to just the people you pick */
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 18px}
+.who .cap{font-size:0.8125rem;color:var(--muted);margin-right:2px;letter-spacing:.01em}
+.who button{border:1px solid var(--line);background:var(--sheet);border-radius:999px;padding:5px 12px;font-size:0.8125rem;font-weight:600;color:var(--muted)}
+@media (hover:hover){.who button:hover{border-color:var(--faint);color:var(--ink)}}
+.who button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.who button.more{border-style:dashed;color:var(--blue)}
 .namefield:focus{outline:none;border-color:var(--blue);background:var(--sheet)}
 .namefield::placeholder{color:var(--faint)}
 
@@ -247,8 +251,8 @@ input.etitle:focus{outline:none;box-shadow:0 2px 0 var(--blue)}
 
 /* press states appear on pointer-down */
 button{touch-action:manipulation}
-.act,.padd,.todayBtn,.mpick,.icon,.mbtn,.back,.brand,.day .c{transition-property:background-color,color,border-color,transform,border-radius,margin;transition-duration:.12s;transition-timing-function:ease-out}
-:is(.act,.padd,.todayBtn,.mpick,.icon:not(:disabled),.mbtn:not(:disabled),.back,.brand,.rows .more):active{transform:scale(.95)}
+.act,.padd,.todayBtn,.mpick,.icon,.mbtn,.back,.brand,.who button,.day .c{transition-property:background-color,color,border-color,transform,border-radius,margin;transition-duration:.12s;transition-timing-function:ease-out}
+:is(.act,.padd,.todayBtn,.mpick,.icon:not(:disabled),.mbtn:not(:disabled),.back,.brand,.who button,.rows .more):active{transform:scale(.95)}
 .grid:not(.paint) .day:not(:disabled):active .c{transform:scale(.9)}
 .grid:not(.paint){touch-action:pan-y}
 :is(.rows>button,.rows .popen,.events .open):active{background:color-mix(in srgb,var(--blue) 9%,transparent)}
@@ -266,7 +270,7 @@ button{touch-action:manipulation}
 /* with reduced motion, things fade in place instead of travelling */
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important}
-  :is(.act,.padd,.todayBtn,.mpick,.icon,.mbtn,.back,.brand,.rows .more):active,.grid:not(.paint) .day:not(:disabled):active .c{transform:none}
+  :is(.act,.padd,.todayBtn,.mpick,.icon,.mbtn,.back,.brand,.who button,.rows .more):active,.grid:not(.paint) .day:not(:disabled):active .c{transform:none}
   .mpop,.mpop.open{transform:none;filter:none}
   .bar,.bar.away{transform:none}
   .bar{transition:opacity .2s,visibility 0s}
@@ -320,9 +324,10 @@ button{touch-action:manipulation}
       <div class="panel">
         <div class="tabs" role="tablist" id="tabs">
           <button role="tab" data-tab="mine" aria-selected="true">Your days</button>
-          <button role="tab" data-tab="group" aria-selected="false">Everyone</button>
+          <button role="tab" data-tab="group" aria-selected="false">Together</button>
         </div>
         <input class="namefield" id="name" placeholder="Your name" maxlength="40" autocomplete="given-name" enterkeyhint="done">
+        <div class="who" id="who" role="group" aria-label="Whose days to compare" hidden></div>
         <div class="mhead">
           <button class="mpick" id="mpick" aria-expanded="false" aria-controls="mpop"><strong id="month"></strong><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="mnav">
@@ -433,7 +438,8 @@ async function connectServer(){
 let store=null, myId="local";
 let route={page:"home",id:null};
 let ev=null, evLoaded=false, others=new Map(), picks=new Set(), dirty=false, saving=false, loaded=false;
-let tab="mine", focusDay=null, view={y:today.getFullYear(),m:today.getMonth()}, bestAll=false, openPerson=null;
+let tab="mine", focusDay=null, view={y:today.getFullYear(),m:today.getMonth()}, bestAll=false, openPerson=null, only=new Set(), whoAll=false;
+const WHO_MAX=8;
 const BEST_MAX=5;
 let subs=[], bootErr="";
 
@@ -459,7 +465,7 @@ function goHome(push=true){
 function openEvent(id,push=true){
   unsubAll();
   route={page:"event",id}; ev=null; evLoaded=false; others=new Map(); picks=new Set(); dirty=false; loaded=false;
-  tab="mine"; focusDay=null; view={y:today.getFullYear(),m:today.getMonth()}; bestAll=false;
+  tab="mine"; focusDay=null; view={y:today.getFullYear(),m:today.getMonth()}; bestAll=false; only=new Set(); whoAll=false;
   pickOpen=false; pickYear=today.getFullYear(); anchor=null; undoPicks=null; openPerson=null;
   if(push&&store) history.pushState(null,"","?e="+id);
   $("name").value="";
@@ -549,19 +555,25 @@ function everyone(){
 
 function renderEvent(){
   if(!ev)return;
-  const people=everyone(), total=people.length, counts=new Map();
-  people.forEach(p=>p.dates.forEach(k=>{if(k>=TODAY)counts.set(k,(counts.get(k)||0)+1);}));
+  // With a few people picked, the calendar and Best days only count them. Picks for
+  // someone who has since gone are ignored rather than dropped, in case they come back.
+  const people=everyone(), comparing=people.length>=3&&people.some(p=>only.has(p.id));
+  const group=comparing?people.filter(p=>only.has(p.id)):people;
+  const total=group.length, counts=new Map();
+  group.forEach(p=>p.dates.forEach(k=>{if(k>=TODAY)counts.set(k,(counts.get(k)||0)+1);}));
 
   // header
   const t=$("etitle"); if(document.activeElement!==t)t.value=ev.title||"Untitled event";
   const canEdit=ev.by===myId; t.readOnly=!canEdit; t.title=canEdit?"Tap to rename":"";
-  $("emeta").textContent=total===0?"Nobody has answered yet":total===1?"1 person has answered":total+" people have answered";
+  const answered=people.length;
+  $("emeta").textContent=answered===0?"Nobody has answered yet":answered===1?"1 person has answered":answered+" people have answered";
   $("shareUrl").textContent=eventUrl(route.id).replace(/^https?:\/\//,"");
 
   // tabs
   $("tabs").querySelectorAll("button").forEach(b=>{b.setAttribute("aria-selected",b.dataset.tab===tab);b.tabIndex=b.dataset.tab===tab?0:-1;});
   placeTabBar();
   $("name").hidden=tab!=="mine";
+  renderWho(people,comparing);
 
   // calendar
   $("month").textContent=MONTHS[view.m]+" "+view.y;
@@ -621,26 +633,32 @@ function renderEvent(){
     if(undoPicks)act("Undo",undo,"",
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h11a5 5 0 010 10h-4M3 10l5-5M3 10l5 5"/></svg>');
     if(picks.size)act("Clear all",()=>{snapshot();picks.clear();anchor=null;markDirty();});
-  } else h.textContent=total<2?"Days fill in with pink once two or more people say they're free.":"The deeper the pink, the more people can make it. Tap a day to see who.";
+  } else if(comparing)h.textContent=total<2?"Pick one more person to see the days you share."
+    :"Showing only the days "+nameList(group)+" are free. Tap Everyone to see the whole group.";
+  else h.textContent=total<2?"Days fill in with pink once two or more people say they're free.":"The deeper the pink, the more people can make it. Tap a day to see who.";
   const det=$("detail");
   if(tab==="group"&&focusDay&&total){
     det.hidden=false; $("detailHead").textContent=longDate(focusDay);
     const chips=$("chips"); chips.innerHTML="";
-    people.forEach(p=>{const s=document.createElement("span");const ok=p.dates.has(focusDay);s.className="chip "+(ok?"ok":"no");s.textContent=p.me?"You":p.name;chips.appendChild(s);});
+    group.forEach(p=>{const s=document.createElement("span");const ok=p.dates.has(focusDay);s.className="chip "+(ok?"ok":"no");s.textContent=p.me?"You":p.name;chips.appendChild(s);});
   } else det.hidden=true;
 
   // best days
   const best=$("best"); best.innerHTML="";
   const sorted=[...counts.entries()].sort((a,b)=>a[0]<b[0]?-1:1);
-  if(total<2){$("bestHead").textContent="Best days";best.innerHTML='<p class="empty">Send the link to a few people. Once they pick their days, matches turn up here.</p>';}
+  if(total<2){
+    $("bestHead").textContent="Best days";
+    best.innerHTML=comparing?'<p class="empty">Pick at least two people to see the days they share.</p>'
+      :'<p class="empty">Send the link to a few people. Once they pick their days, matches turn up here.</p>';
+  }
   else{
     const all=sorted.filter(([,c])=>c===total), top=Math.max(0,...sorted.map(([,c])=>c));
     const rows=all.length?all:sorted.filter(([,c])=>c===top&&c>0);
-    $("bestHead").textContent=all.length?"Everyone's free":"Best so far";
+    $("bestHead").textContent=all.length?(comparing?"All "+total+" free":"Everyone's free"):"Best so far";
     if(!rows.length)best.innerHTML='<p class="empty">Nobody has picked an upcoming day yet.</p>';
     else{
-      const runs=groupRuns(rows,people), shown=bestAll?runs:runs.slice(0,BEST_MAX);
-      shown.forEach(run=>best.appendChild(bestRow(run,total,people)));
+      const runs=groupRuns(rows,group), shown=bestAll?runs:runs.slice(0,BEST_MAX);
+      shown.forEach(run=>best.appendChild(bestRow(run,total,group)));
       if(runs.length>BEST_MAX){
         const t=document.createElement("button"); t.className="more";
         t.textContent=bestAll?"Show fewer":"Show all "+runs.length;
@@ -652,9 +670,9 @@ function renderEvent(){
 
   // people
   const pl=$("people"); pl.innerHTML="";
-  $("peopleHead").textContent=total?"People ("+total+")":"People";
-  if(!total)pl.innerHTML='<p class="empty">Nobody yet. Put your name in to get started.</p>';
-  people.sort((a,b)=>a.me?-1:b.me?1:a.name.localeCompare(b.name)).forEach(p=>{
+  $("peopleHead").textContent=answered?"People ("+answered+")":"People";
+  if(!answered)pl.innerHTML='<p class="empty">Nobody yet. Put your name in to get started.</p>';
+  people.sort(byName).forEach(p=>{
     const open=openPerson===p.id;
     const r=document.createElement("div"); r.className="prow";
     const o=document.createElement("button"); o.className="popen";
@@ -708,6 +726,38 @@ function renderEvent(){
   });
 
   updateSave();
+}
+
+/* The chips above the Together calendar. "Everyone" clears the selection; each name
+   toggles that person in or out. Only worth showing once there are three or more
+   people, since with two, picking both is the same as everyone. A big group shows
+   the first few names and a "+n more" chip, but anyone picked always stays in view. */
+const byName=(a,b)=>a.me?-1:b.me?1:a.name.localeCompare(b.name);
+function renderWho(people,comparing){
+  const box=$("who"); box.hidden=tab!=="group"||people.length<3;
+  if(box.hidden)return;
+  box.innerHTML='<span class="cap">Who:</span>';
+  const chip=(label,on,fn)=>{
+    const b=document.createElement("button"); b.type="button"; b.textContent=label;
+    if(on===null)b.className="more"; else b.setAttribute("aria-pressed",on);
+    b.onclick=fn; box.appendChild(b); return b;
+  };
+  chip("Everyone",!comparing,()=>{only.clear();bestAll=false;renderAll();});
+  const sorted=[...people].sort(byName), long=sorted.length>WHO_MAX;
+  const shown=!long||whoAll?sorted:sorted.filter((p,i)=>i<WHO_MAX||only.has(p.id));
+  shown.forEach(p=>chip(p.me?"You":p.name,comparing&&only.has(p.id),()=>{
+    only.has(p.id)?only.delete(p.id):only.add(p.id);
+    if(people.every(q=>only.has(q.id)))only.clear();   // everybody picked is just Everyone
+    bestAll=false; renderAll();
+  }));
+  if(long&&(whoAll||shown.length<sorted.length)){
+    const more=chip(whoAll?"Show fewer":"+"+(sorted.length-shown.length)+" more",null,()=>{whoAll=!whoAll;renderAll();});
+    more.setAttribute("aria-expanded",whoAll);
+  }
+}
+function nameList(list){
+  const n=[...list].sort(byName).map(p=>p.me?"you":p.name);
+  return n.length<2?n.join(""):n.slice(0,-1).join(", ")+" and "+n[n.length-1];
 }
 
 /* Consecutive days with the same set of free people collapse into one row, so a
@@ -1005,7 +1055,7 @@ function goMonth(y,m){
   settleGrid();
 }
 
-/* In the Everyone view the calendar can be swiped between months. It follows the
+/* In the Together view the calendar can be swiped between months. It follows the
    finger 1:1 after a small threshold, projects the flick forward to decide whether
    to turn the page, and hands the finger's velocity to the spring. */
 let sw=null, swiped=false;

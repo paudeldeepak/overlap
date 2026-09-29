@@ -43,8 +43,7 @@ const SCRIPT_HASH = inline ? createHash('sha256').update(inline[1]).digest('base
 const CSP = [
   "default-src 'none'",
   `script-src 'sha256-${SCRIPT_HASH}'`,
-  "style-src 'unsafe-inline' https://fonts.googleapis.com",
-  'font-src https://fonts.gstatic.com',
+  "style-src 'unsafe-inline'",
   "connect-src 'self'",
   "img-src 'self' data:",
   "base-uri 'none'",

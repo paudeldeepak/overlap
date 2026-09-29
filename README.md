@@ -22,15 +22,57 @@ These environment variables change the defaults:
 
 ## Put it on the internet
 
-Serve it over HTTPS through a reverse proxy. With Caddy, which gets certificates for you, the whole config is:
+Overlap runs in Docker and Caddy sits in front of it, serving it over HTTPS. Caddy gets the certificates for you.
+
+### 1. Start Overlap with Docker Compose
+
+You need Docker with the Compose plugin. In this folder:
+
+    cp .env.example .env
+
+Edit `.env` and set the port you want. For example:
+
+    PORT=3005
+
+Then build and start it:
+
+    docker compose up -d --build
+
+Overlap is now listening on `127.0.0.1:3005` on the host. It is only reachable from the machine itself, so traffic has to go through Caddy. The database lives in the `overlap-data` Docker volume, which survives restarts, rebuilds and `docker compose down`.
+
+The settings in `.env`:
+
+| Variable      | Default     | What it does |
+| ------------- | ----------- | ------------ |
+| `PORT`        | `8080`      | Port Overlap listens on, inside the container and on the host. Caddy must point at the same one. |
+| `BIND`        | `127.0.0.1` | Host address the port is published on. Keep `127.0.0.1` when Caddy runs on the same machine. |
+| `TRUST_PROXY` | `1`         | Trust the `X-Forwarded-*` headers Caddy sets. Only set it to `0` if nothing sits in front of Overlap. |
+
+To see the logs:
+
+    docker compose logs -f
+
+After pulling new code, run `docker compose up -d --build` again.
+
+### 2. Point Caddy at it
+
+Add this to your Caddyfile, using your domain and the same port as `PORT` in `.env`:
 
     overlap.example.com {
-        reverse_proxy 127.0.0.1:8080
+        reverse_proxy 127.0.0.1:3005
     }
 
-Then start Overlap with `TRUST_PROXY=1 npm start`. The session cookie is marked `Secure` whenever the request came in over HTTPS.
+Then reload Caddy:
 
-To keep it running with systemd, create `/etc/systemd/system/overlap.service`:
+    sudo systemctl reload caddy
+
+The session cookie is marked `Secure` whenever the request came in over HTTPS, which it always does through Caddy.
+
+If Caddy itself runs in a Docker container, put both containers on the same Docker network and use `reverse_proxy overlap:3005` instead. In that case you don't need the `ports:` section in `docker-compose.yml` at all.
+
+### Without Docker
+
+Run `TRUST_PROXY=1 PORT=3005 npm start` and point Caddy at the same port as above. To keep it running with systemd, create `/etc/systemd/system/overlap.service`:
 
     [Unit]
     Description=Overlap
@@ -39,6 +81,7 @@ To keep it running with systemd, create `/etc/systemd/system/overlap.service`:
     [Service]
     WorkingDirectory=/opt/overlap
     Environment=TRUST_PROXY=1
+    Environment=PORT=3005
     ExecStart=/usr/bin/npm start
     Restart=on-failure
     User=overlap
@@ -64,6 +107,11 @@ To delete an event along with everyone's answers:
 
     npm run delete-event -- <event id>
 
+With Docker, run the same commands inside the container:
+
+    docker compose exec overlap node --disable-warning=ExperimentalWarning server/admin.js list
+    docker compose exec overlap node --disable-warning=ExperimentalWarning server/admin.js delete <event id>
+
 You can also do it straight from the `sqlite3` shell. A trigger removes the event's answers with it:
 
     sqlite3 data/overlap.db "DELETE FROM events WHERE id = 'abc123';"
@@ -74,11 +122,19 @@ To back up while the server is running:
 
     sqlite3 data/overlap.db ".backup overlap-backup.db"
 
+With Docker, the database is inside the volume. The container has no `sqlite3`, so copy it out through a throwaway container that does. This backs it up to `overlap-backup.db` in the current folder:
+
+    docker run --rm -v overlap_overlap-data:/data -v "$PWD":/backup alpine \
+      sh -c 'apk add -q sqlite && sqlite3 /data/overlap.db ".backup /backup/overlap-backup.db"'
+
+The volume's full name starts with the Compose project name, which is the folder name (`overlap` here). `docker volume ls` shows it.
+
 ## How it works
 
 - The home page lets anyone create a named event. Each event gets its own link (`?e=...`).
 - Friends open the link, enter their name, and tap or drag across any dates in any month.
-- The Everyone tab and the Best days list show where schedules overlap. Changes appear for everyone with the event open, without reloading.
+- The Together tab and the Best days list show where schedules overlap. Changes appear for everyone with the event open, without reloading.
+- Once three or more people have answered, the Together tab has a row of name chips. Pick a few to see only the days those people are all free. With more than eight people, the rest sit behind a "+n more" chip.
 - Only the person who created an event can rename or delete it.
 
 ## Security
