@@ -1,28 +1,23 @@
-# Settings come from a .env file next to this one. Copy .env.example to .env and edit it.
+# to start:  docker compose up -d
 services:
   overlap:
-    build: .
+    build: https://github.com/paudeldeepak/overlap.git#main
     image: overlap
+    container_name: overlap
     restart: unless-stopped
     init: true
     environment:
-      PORT: ${PORT:-8080}
-      TRUST_PROXY: ${TRUST_PROXY:-1}
-      # Inside the container the server must listen on every interface so Docker can
-      # forward to it. The port mapping below decides who can actually reach it.
       HOST: 0.0.0.0
+      PORT: 8080
       DB_PATH: /data/overlap.db
+      TRUST_PROXY: 1
     ports:
-      # Published on the host's loopback only, so Caddy on the same machine can reach
-      # it but the rest of the internet can't bypass Caddy.
-      - "${BIND:-127.0.0.1}:${PORT:-8080}:${PORT:-8080}"
+      - "3417:8080"
     volumes:
       - overlap-data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT}/ || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
 
 volumes:
   overlap-data:
