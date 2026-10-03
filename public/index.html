@@ -317,7 +317,7 @@ button{touch-action:manipulation}
       </div>
       <div class="share" id="shareBox">
         <code id="shareUrl"></code>
-        <button class="btn" id="copyBtn">Copy link</button>
+        <button class="btn" id="copyBtn">Copy event link</button>
       </div>
     </div>
 
@@ -1167,8 +1167,8 @@ titleEl.addEventListener("blur",async()=>{
 
 $("copyBtn").onclick=async()=>{
   const url=eventUrl(route.id);
-  try{await navigator.clipboard.writeText(url);toast("Link copied");}
-  catch(e){if(navigator.share){try{await navigator.share({title:ev?.title,url});}catch(_){}}else prompt("Copy this link:",url);}
+  try{await navigator.clipboard.writeText(url);toast("Event link copied");}
+  catch(e){if(navigator.share){try{await navigator.share({title:ev?.title,url});}catch(_){}}else prompt("Copy this event link:",url);}
 };
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
 
