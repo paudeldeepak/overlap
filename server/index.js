@@ -36,14 +36,19 @@ const q = {
 };
 
 /* ── the page ─────────────────────────────────────────────── */
-const PAGE = readFileSync(path.join(ROOT, 'public', 'index.html'));
-// The page's one inline script is allowed by its hash; nothing else can run.
-const inline = PAGE.toString().match(/<script type="module">([\s\S]*?)<\/script>/);
-const SCRIPT_HASH = inline ? createHash('sha256').update(inline[1]).digest('base64') : '';
+// The only files the server hands out. Anything else in the folder can't be requested.
+const FILES = {
+  '/': ['index.html', 'text/html; charset=utf-8'],
+  '/index.html': ['index.html', 'text/html; charset=utf-8'],
+  '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
+  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+};
+for (const f of Object.values(FILES)) f.push(readFileSync(path.join(ROOT, 'public', f[0])));
+// Only this site's own script and stylesheet can run; no inline code at all.
 const CSP = [
   "default-src 'none'",
-  `script-src 'sha256-${SCRIPT_HASH}'`,
-  "style-src 'unsafe-inline'",
+  "script-src 'self'",
+  "style-src 'self'",
   "connect-src 'self'",
   "img-src 'self' data:",
   "base-uri 'none'",
@@ -222,14 +227,16 @@ async function route(req, res) {
 
   if (!pathname.startsWith('/api/')) {
     if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'Method not allowed.');
-    if (pathname !== '/' && pathname !== '/index.html') throw new HttpError(404, 'Not found.');
+    const file = Object.hasOwn(FILES, pathname) && FILES[pathname];
+    if (!file) throw new HttpError(404, 'Not found.');
+    const [, type, body] = file;
     res.writeHead(200, {
       ...BASE_HEADERS,
-      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Type': type,
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': CSP,
     });
-    return res.end(method === 'HEAD' ? undefined : PAGE);
+    return res.end(method === 'HEAD' ? undefined : body);
   }
 
   if (method !== 'GET') checkOrigin(req);

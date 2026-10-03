@@ -143,9 +143,9 @@ The volume's full name starts with the Compose project name, which is the folder
 - Every write runs in its own `BEGIN IMMEDIATE` transaction and is rolled back on any error. Every query uses bound parameters. Rename and delete check ownership inside the SQL statement itself.
 - The server rejects writes from other sites (checked with `Origin` and `Sec-Fetch-Site`), anything that isn't JSON, request bodies over 16 KB, names over the length limits, dates that don't exist, and more than 400 days.
 - Simple rate limits stop a script from filling the database.
-- The page ships with a Content Security Policy that only allows its own script, matched by hash.
-- The server only serves `index.html` and the API. No other file in this folder can be requested.
+- The page ships with a Content Security Policy that only allows its own script and stylesheet, served from the same site. Inline scripts, `<style>` blocks and `style` attributes are blocked.
+- The server only serves `index.html`, `styles.css`, `app.js` and the API. No other file in this folder can be requested.
 - Anyone with an event link can add a response, so share links only with the people you're inviting. Events can't be listed through the API, only opened by link.
 - Identity lives in the browser, so someone who switches devices shows up as a new person.
 
-If you edit `public/index.html`, restart the server so it picks up the new script hash.
+The page is split into `public/index.html` (markup), `public/styles.css` and `public/app.js`. The server reads them once at startup, so restart it after editing any of them.
