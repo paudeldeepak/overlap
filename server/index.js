@@ -33,6 +33,9 @@ const q = {
   setOwnerName: db.prepare('UPDATE events SET owner_name = ? WHERE id = ? AND owner_id = ?'),
   rename: db.prepare('UPDATE events SET title = ? WHERE id = ? AND owner_id = ?'),
   deleteEvent: db.prepare('DELETE FROM events WHERE id = ? AND owner_id = ?'),
+  removeResponse: db.prepare(`
+    DELETE FROM responses WHERE event_id = ? AND person_id = ?
+      AND EXISTS (SELECT 1 FROM events WHERE id = ? AND owner_id = ?)`),
 };
 
 /* ── the page ─────────────────────────────────────────────── */
@@ -264,9 +267,9 @@ async function route(req, res) {
     return send(res, 201, { id });
   }
 
-  const m = pathname.match(/^\/api\/events\/([^/]+)(\/stream|\/responses\/me)?$/);
+  const m = pathname.match(/^\/api\/events\/([^/]+)(\/stream|\/responses\/me|\/responses\/([^/]+))?$/);
   if (!m) throw new HttpError(404, 'Not found.');
-  const [, id, sub] = m;
+  const [, id, sub, personId] = m;
   if (!ID_RE.test(id)) throw new HttpError(404, 'Not found.');
   const me = requirePerson(req);
 
@@ -283,6 +286,22 @@ async function route(req, res) {
       q.saveResponse.run(id, me, name, JSON.stringify(dates), Date.now());
       // The creator's name goes on the event so other people's lists can show it.
       if (event.by === me) q.setOwnerName.run(name, id, me);
+    });
+    broadcast(id);
+    return send(res, 200, { ok: true });
+  }
+
+  // The creator can take someone's answers off the event. Nothing stops that person
+  // from answering again through the same link; this only clears what they had.
+  if (personId && personId !== 'me' && method === 'DELETE') {
+    if (!ID_RE.test(personId)) throw new HttpError(404, 'Not found.');
+    if (personId === me) bad("You can't remove yourself.");
+    limit('remove:' + me, 120, TEN_MIN);
+    tx(db, () => {
+      const event = q.getEvent.get(id);
+      if (!event) throw new HttpError(404, 'That event no longer exists.');
+      if (event.by !== me) throw new HttpError(403, 'Only the person who made this event can remove people.');
+      if (!q.removeResponse.run(id, personId, id, me).changes) throw new HttpError(404, 'That person is no longer on this event.');
     });
     broadcast(id);
     return send(res, 200, { ok: true });

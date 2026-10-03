@@ -210,6 +210,16 @@ input.etitle:not([readonly]):focus{box-shadow:0 2px 0 var(--blue)}
 .padd svg{width:12px;height:12px}
 .pgot{flex:none;font-size:0.75rem;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
 .pgot svg{width:13px;height:13px;color:var(--blue)}
+.phead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 10px}
+.side .phead h3{margin:0}
+.pedit{border:0;background:none;padding:4px 2px;color:var(--blue);font-size:0.875rem;font-weight:700}
+@media (hover:hover){.pedit:hover{text-decoration:underline;text-underline-offset:3px}}
+.rows.editing .popen .chev{display:none}
+.rows.editing .popen:disabled{cursor:default}
+@media (hover:hover){.rows.editing .prow:hover{background:none}}
+.pdel{flex:none;width:32px;height:32px;border:0;background:none;color:var(--faint);padding:0;margin:0 0 0 4px;border-radius:50%;display:grid;place-items:center}
+@media (hover:hover){.pdel:hover{color:#d62f4b;background:var(--soft)}}
+.pdel svg{width:16px;height:16px;display:block}
 /* the "All n" marker is a tiny overprint of its own */
 .pill{display:inline-flex;align-items:center;gap:7px}
 .pill::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--pink);box-shadow:3px -2px 0 color-mix(in srgb,var(--blue) 85%,transparent)}

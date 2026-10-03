@@ -60,15 +60,16 @@ async function connectServer(){
     },
     saveResponse:(id,d)=>api("PUT","/events/"+id+"/responses/me",{name:d.name,dates:d.dates}),
     renameEvent:(id,title)=>api("PATCH","/events/"+id,{title}),
-    deleteEvent:id=>api("DELETE","/events/"+id)
+    deleteEvent:id=>api("DELETE","/events/"+id),
+    removePerson:(id,personId)=>api("DELETE","/events/"+id+"/responses/"+encodeURIComponent(personId))
   };
 }
 
 /* ── state ────────────────────────────────────────────────── */
 let store=null, myId="local";
 let route={page:"home",id:null};
-let ev=null, evLoaded=false, others=new Map(), picks=new Set(), dirty=false, saving=false, loaded=false;
-let tab="mine", focusDay=null, view={y:today.getFullYear(),m:today.getMonth()}, bestAll=false, openPerson=null, only=new Set(), whoAll=false;
+let ev=null, evLoaded=false, others=new Map(), picks=new Set(), dirty=false, saving=false, loaded=false, wasIn=false;
+let tab="mine", focusDay=null, view={y:today.getFullYear(),m:today.getMonth()}, bestAll=false, openPerson=null, peopleEdit=false, only=new Set(), whoAll=false;
 const WHO_MAX=8;
 const BEST_MAX=5;
 let subs=[], bootErr="";
@@ -94,9 +95,9 @@ function goHome(push=true){
 }
 function openEvent(id,push=true){
   unsubAll();
-  route={page:"event",id}; ev=null; evLoaded=false; others=new Map(); picks=new Set(); dirty=false; loaded=false;
+  route={page:"event",id}; ev=null; evLoaded=false; others=new Map(); picks=new Set(); dirty=false; loaded=false; wasIn=false;
   tab="mine"; focusDay=null; view={y:today.getFullYear(),m:today.getMonth()}; bestAll=false; only=new Set(); whoAll=false;
-  pickOpen=false; pickYear=today.getFullYear(); anchor=null; undoPicks=null; openPerson=null;
+  pickOpen=false; pickYear=today.getFullYear(); anchor=null; undoPicks=null; openPerson=null; peopleEdit=false;
   if(push&&store) history.pushState(null,"","?e="+id);
   $("name").value=""; $("tedit").hidden=true;
   subs.push(store.watchEvent(id,data=>{
@@ -110,6 +111,13 @@ function openEvent(id,push=true){
       if(first){const d=parse(first);view={y:d.getFullYear(),m:d.getMonth()};}
     }
     if(mine&&!dirty&&!drag){picks=new Set(mine.dates||[]);anchor=null;undoPicks=null;if(document.activeElement!==$("name"))$("name").value=mine.name||"";}
+    // The creator took you off the event. Start over clean, unless you're mid-edit,
+    // in which case saving puts you back.
+    if(!mine&&wasIn){
+      if(!dirty&&!drag){picks=new Set();anchor=null;undoPicks=null;$("name").value="";}
+      toast("The organizer removed you from this event. You can add your days again.");
+    }
+    wasIn=!!mine;
     loaded=true; renderAll();
   },()=>toast("Lost the connection. Reload the page to get it back.")));
   renderAll(); window.scrollTo(0,0);
@@ -302,9 +310,15 @@ function renderEvent(){
   // people
   const pl=$("people"); pl.innerHTML="";
   $("peopleHead").textContent=answered?"People ("+answered+")":"People";
+  // Edit mode is the creator's way to take people off the event. It ends by itself
+  // once there's nobody left to remove.
+  const canRemove=ev.by===myId&&people.some(p=>!p.me);
+  if(!canRemove)peopleEdit=false;
+  const pe=$("peopleEdit"); pe.hidden=!canRemove; pe.textContent=peopleEdit?"Done":"Edit"; pe.setAttribute("aria-pressed",peopleEdit);
+  pl.classList.toggle("editing",peopleEdit);
   if(!answered)pl.innerHTML='<p class="empty">Nobody yet. Put your name in to get started.</p>';
   people.sort(byName).forEach(p=>{
-    const open=openPerson===p.id;
+    const open=!peopleEdit&&openPerson===p.id;
     const r=document.createElement("div"); r.className="prow";
     const o=document.createElement("button"); o.className="popen";
     o.innerHTML='<span class="av"></span><div class="t"></div><span class="r"></span>'
@@ -314,8 +328,21 @@ function renderEvent(){
     o.children[2].textContent=p.dates.size+(p.dates.size===1?" day":" days");
     o.setAttribute("aria-expanded",open);
     o.title=open?"Hide the days "+(p.me?"you picked":p.name+" picked"):"See the days "+(p.me?"you picked":p.name+" picked");
-    o.onclick=()=>{openPerson=open?null:p.id;renderAll();};
+    if(peopleEdit){o.disabled=true;o.removeAttribute("aria-expanded");o.removeAttribute("title");}
+    else o.onclick=()=>{openPerson=open?null:p.id;renderAll();};
     r.appendChild(o);
+    // In edit mode every row gets the same end slot, so the day counts stay lined
+    // up; your own row's slot is empty.
+    if(peopleEdit){
+      const x=document.createElement(p.me?"span":"button"); x.className="pdel";
+      if(!p.me){
+        x.title="Remove "+p.name+" from this event";
+        x.setAttribute("aria-label","Remove "+p.name+" from this event");
+        x.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+        x.onclick=()=>removePerson(p);
+      }
+      r.appendChild(x);
+    }
     pl.appendChild(r);
     if(open){
       const box=document.createElement("div"); box.className="pdates";
@@ -357,6 +384,12 @@ function renderEvent(){
   });
 
   updateSave();
+}
+
+async function removePerson(p){
+  if(!confirm("Remove "+p.name+" from this event?\n\nTheir days are deleted. They can still open the link and add them again."))return;
+  try{await store.removePerson(route.id,p.id);if(openPerson===p.id)openPerson=null;toast(p.name+" removed");}
+  catch(e){toast(e&&e.userMessage?e.userMessage:"Couldn't remove them. Try again.");}
 }
 
 /* The chips above the Together calendar. "Everyone" clears the selection; each name
@@ -821,6 +854,7 @@ titleEl.addEventListener("keydown",e=>{
   else if(e.key==="Escape")cancelTitle();
 });
 $("titleSave").onclick=saveTitle;
+$("peopleEdit").onclick=()=>{peopleEdit=!peopleEdit;openPerson=null;renderAll();};
 $("titleCancel").onclick=cancelTitle;
 
 // The box shows only the event code, but copying any of it copies the full link.

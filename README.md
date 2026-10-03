@@ -136,11 +136,12 @@ The volume's full name starts with the Compose project name, which is the folder
 - The Together tab and the Best days list show where schedules overlap. Changes appear for everyone with the event open, without reloading.
 - Once three or more people have answered, the Together tab has a row of name chips. Pick a few to see only the days those people are all free. With more than eight people, the rest sit behind a "+n more" chip.
 - Only the person who created an event can rename or delete it.
+- The creator can remove someone from the event: tap **Edit** next to People, then the trash icon on their row. Their name and days are deleted. The link still works for them, so they can answer again if they want to.
 
 ## Security
 
 - Nobody signs up. The first visit gets a random 256-bit token in an `HttpOnly`, `SameSite=Strict` cookie, so page scripts can't read it and other sites can't send it.
-- Every write runs in its own `BEGIN IMMEDIATE` transaction and is rolled back on any error. Every query uses bound parameters. Rename and delete check ownership inside the SQL statement itself.
+- Every write runs in its own `BEGIN IMMEDIATE` transaction and is rolled back on any error. Every query uses bound parameters. Rename, delete and removing someone check ownership inside the SQL statement itself.
 - The server rejects writes from other sites (checked with `Origin` and `Sec-Fetch-Site`), anything that isn't JSON, request bodies over 16 KB, names over the length limits, dates that don't exist, and more than 400 days.
 - Simple rate limits stop a script from filling the database.
 - The page ships with a Content Security Policy that only allows its own script and stylesheet, served from the same site. Inline scripts, `<style>` blocks and `style` attributes are blocked.
