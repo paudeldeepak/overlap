@@ -38,8 +38,11 @@ button{cursor:pointer}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-stretch:125%;font-size:1.0625rem;letter-spacing:-.01em;background:none;border:0;padding:0}
 .logo{width:28px;height:20px;position:relative;isolation:isolate}
 .logo i{position:absolute;top:0;width:20px;height:20px;border-radius:50%;mix-blend-mode:var(--blend)}
-.logo i:first-child{left:0;background:var(--pink)}
-.logo i:last-child{left:8px;background:var(--blue)}
+.logo i:first-child{left:0;background:var(--pink);animation:logoL 1.1s cubic-bezier(.2,.8,.2,1.15) .1s both}
+.logo i:last-child{left:8px;background:var(--blue);animation:logoR 1.1s cubic-bezier(.2,.8,.2,1.15) .1s both}
+/* on load the two inks start apart and slide into register, the not-found drift in reverse */
+@keyframes logoL{from{transform:translateX(-9px)}}
+@keyframes logoR{from{transform:translateX(9px)}}
 .back{display:flex;align-items:center;gap:4px;background:none;border:0;color:var(--muted);padding:6px 0;font-size:0.9375rem}
 @media (hover:hover){.back:hover{color:var(--ink)}}
 .back svg{width:18px;height:18px}
@@ -52,7 +55,6 @@ button{cursor:pointer}
 .hero h1::after{content:attr(data-ink);position:absolute;inset:0;z-index:-1;color:var(--pink);
   transform:translate(-.03em,.025em);animation:register .9s cubic-bezier(.2,.7,.2,1) .15s both;pointer-events:none}
 @keyframes register{from{transform:translate(-.3em,.15em);opacity:0}to{transform:translate(-.03em,.025em);opacity:1}}
-.hero p{color:var(--muted);font-size:1.125rem;max-width:31em;margin:22px 0 0}
 .create{display:flex;gap:8px;max-width:560px;background:var(--sheet);border:1.5px solid var(--ink);border-radius:999px;padding:6px 6px 6px 8px}
 .create:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 30%,transparent)}
 .create input{flex:1;min-width:0;border:0;background:transparent;padding:10px 14px;font-size:1.0625rem}
@@ -83,18 +85,20 @@ button{cursor:pointer}
 @media (max-width:620px){.steps{grid-template-columns:1fr;gap:20px}.hero{padding-top:32px}}
 
 /* event */
-.ehead{padding:20px 0 26px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.ehead{padding:20px 0 26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:16px 40px;align-items:end}
 .etitle{font-size:clamp(1.875rem,5.6vw,3rem);font-weight:800;font-stretch:118%;letter-spacing:-.025em;line-height:1.05;margin:0;border:0;background:none;padding:0;width:100%}
 @media (hover:hover){input.etitle:not([readonly]):hover{box-shadow:0 2px 0 var(--line)}}
-input.etitle:focus{outline:none;box-shadow:0 2px 0 var(--blue)}
+input.etitle:focus{outline:none}
+input.etitle[readonly]{cursor:default}
+input.etitle:not([readonly]):focus{box-shadow:0 2px 0 var(--blue)}
 .emeta{color:var(--muted);margin:8px 0 0}
-.tl{flex:1 1 320px;min-width:0}
-.share{display:flex;align-items:center;gap:6px;background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:5px 5px 5px 16px;max-width:100%;flex:0 1 430px}
+.tl{min-width:0}
+.share{display:flex;align-items:center;gap:6px;background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:5px 5px 5px 16px;min-width:0}
 .share code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:inherit;font-size:0.875rem;color:var(--muted)}
 .share .btn{padding:9px 16px;font-size:0.875rem}
 
 .layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:40px;align-items:start}
-@media (max-width:860px){.layout{grid-template-columns:1fr;gap:32px}}
+@media (max-width:860px){.layout{grid-template-columns:1fr;gap:32px}.ehead{grid-template-columns:1fr}}
 .panel{background:var(--sheet);border-radius:10px;padding:8px 18px 18px;box-shadow:0 0 0 1px var(--line);overflow:hidden}
 .tabs{position:relative;display:flex;gap:22px;margin:0 0 18px;border-bottom:1px solid var(--line)}
 .tabs button{border:0;background:none;padding:12px 0 11px;font-size:0.9375rem;font-weight:600;color:var(--muted);transition:color .2s}
@@ -240,9 +244,22 @@ input.etitle:focus{outline:none;box-shadow:0 2px 0 var(--blue)}
   .panel{padding:6px 12px 16px}
 }
 
-.missing{text-align:center;padding:88px 0}
-.missing h1{font-size:2.125rem;font-weight:800;font-stretch:118%;letter-spacing:-.02em;margin:0 0 8px}
-.missing p{color:var(--muted);margin:0 0 24px}
+/* not found: the logo's two inks have drifted apart, so there's no overlap to show */
+.missing{text-align:center;padding:72px 0 88px;display:flex;flex-direction:column;align-items:center}
+.missing .apart{position:relative;width:min(300px,78vw);height:min(150px,39vw);margin:0 0 36px}
+.missing .apart i{position:absolute;top:6%;width:44%;aspect-ratio:1;border-radius:50%;mix-blend-mode:var(--blend)}
+.missing .apart i:first-child{left:0;background:var(--pink);animation:driftL 1.1s cubic-bezier(.2,.8,.2,1.15) .1s both,bobL 5s ease-in-out 1.3s infinite}
+.missing .apart i:last-child{right:0;background:var(--blue);animation:driftR 1.1s cubic-bezier(.2,.8,.2,1.15) .1s both,bobR 5s ease-in-out 1.3s infinite}
+.missing .apart::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:46%;transform:translate(-50%,-50%) rotate(14deg);background:var(--faint);opacity:.5;border-radius:2px}
+@keyframes driftL{from{transform:translateX(60%)}}
+@keyframes driftR{from{transform:translateX(-60%)}}
+@keyframes bobL{50%{transform:translate(-4px,5px)}}
+@keyframes bobR{50%{transform:translate(4px,-5px)}}
+.missing .kick{font-size:0.8125rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--pink);margin:0 0 12px}
+.missing h1{position:relative;isolation:isolate;font-size:clamp(2.25rem,7vw,3.5rem);line-height:1;font-weight:800;font-stretch:125%;letter-spacing:-.03em;margin:0 0 14px;color:var(--blue)}
+.missing h1::after{content:attr(data-ink);position:absolute;inset:0;z-index:-1;color:var(--pink);transform:translate(-.03em,.025em);pointer-events:none}
+.missing p{color:var(--muted);font-size:1.0625rem;max-width:26em;margin:0 0 28px}
+.missing .acts{justify-content:center;margin:0}
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:9;
   background:var(--ink);color:var(--paper);border-radius:999px;padding:10px 18px;font-size:0.875rem;font-weight:600;transition:.25s;pointer-events:none;visibility:hidden;max-width:calc(100% - 40px);display:flex;align-items:center;gap:16px}
 .toast.show{opacity:1;transform:translate(-50%,0);visibility:visible}
@@ -292,7 +309,6 @@ button{touch-action:manipulation}
   <section id="home">
     <div class="hero">
       <h1 data-ink="When is everyone free?">When is everyone free?</h1>
-      <p>Make an event, send people the link, and everyone picks the days they can do. You'll see which ones overlap.</p>
     </div>
     <form class="create" id="createForm">
       <input id="newTitle" placeholder="Event name" maxlength="80" aria-label="Event name" enterkeyhint="go">
@@ -300,7 +316,7 @@ button{touch-action:manipulation}
     </form>
     <p class="label" id="eventsLabel">Your events</p>
     <div class="events" id="events"></div>
-    <p class="note" id="offlineHome" hidden>This view can't reach the database, so you can't make events here.</p>
+    <p class="note" id="offlineHome" hidden>Can't reach the Overlap server right now, so events can't be created. Reload to try again.</p>
     <ol class="steps" aria-label="How it works">
       <li><b>Make it</b>Give your event a name.</li>
       <li><b>Send it</b>Anyone with the link can add their days.</li>
@@ -359,9 +375,11 @@ button{touch-action:manipulation}
   </section>
 
   <section id="missing" class="missing" hidden>
-    <h1>Can't find that event</h1>
-    <p>The link might have a typo in it, or someone deleted the event.</p>
-    <button class="btn" id="missingHome">Start a new one</button>
+    <div class="apart" aria-hidden="true"><i></i><i></i></div>
+    <p class="kick">No overlap here</p>
+    <h1 data-ink="Can't find that event">Can't find that event</h1>
+    <p>The link might have a typo in it, or someone deleted the event. Check the link with whoever sent it, or start your own.</p>
+    <div class="acts"><button class="btn" id="missingHome">Start a new one</button></div>
   </section>
 </div>
 
@@ -503,8 +521,7 @@ function renderAll(){
 }
 
 function renderHome(){
-  $("offlineHome").hidden=!!store;
-  if(!store&&bootErr)$("offlineHome").textContent="Can't reach the Overlap server right now, so events can't be created. Reload to try again.";
+  $("offlineHome").hidden=!bootErr;
   $("createBtn").disabled=!store||!$("newTitle").value.trim();
   const list=lsGet("overlap-recent",[]).map(r=>({id:r.id,title:r.title,created:r.t,mine:r.mine===true,known:r.mine!==undefined,byName:r.byName||""}));
   const box=$("events"); box.innerHTML="";
@@ -518,7 +535,7 @@ function renderHome(){
     tl.firstChild.textContent=name; tl.firstChild.style.fontWeight="500";
     if(e.known&&!e.mine)tl.lastChild.textContent=e.byName?"Created by "+e.byName:"Someone else's event";
     else tl.lastChild.remove();
-    b.lastChild.textContent=e.created?new Date(e.created).toLocaleDateString(undefined,{month:"short",day:"numeric"}):"";
+    b.lastChild.textContent=e.created?new Date(e.created).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"";
     b.onclick=()=>openEvent(e.id);
     const d=document.createElement("button"); d.className="del"+(e.mine?" danger":"");
     d.title=e.mine?"Delete this event for everyone":"Take this off your list. The event itself stays.";
@@ -565,10 +582,10 @@ function renderEvent(){
 
   // header
   const t=$("etitle"); if(document.activeElement!==t)t.value=ev.title||"Untitled event";
-  const canEdit=ev.by===myId; t.readOnly=!canEdit; t.title=canEdit?"Tap to rename":"";
+  const canEdit=ev.by===myId; t.readOnly=!canEdit; t.tabIndex=canEdit?0:-1; t.title=canEdit?"Tap to rename":"";
   const answered=people.length;
   $("emeta").textContent=answered===0?"Nobody has answered yet":answered===1?"1 person has answered":answered+" people have answered";
-  $("shareUrl").textContent=eventUrl(route.id).replace(/^https?:\/\//,"");
+  $("shareUrl").textContent=route.id; $("shareUrl").title=eventUrl(route.id);
 
   // tabs
   $("tabs").querySelectorAll("button").forEach(b=>{b.setAttribute("aria-selected",b.dataset.tab===tab);b.tabIndex=b.dataset.tab===tab?0:-1;});
@@ -1165,6 +1182,8 @@ titleEl.addEventListener("blur",async()=>{
   try{await store.renameEvent(route.id,t);}catch(e){toast("Couldn't rename it");titleEl.value=ev.title;}
 });
 
+// The box shows only the event code, but copying any of it copies the full link.
+$("shareUrl").addEventListener("copy",e=>{e.preventDefault();e.clipboardData.setData("text/plain",eventUrl(route.id));});
 $("copyBtn").onclick=async()=>{
   const url=eventUrl(route.id);
   try{await navigator.clipboard.writeText(url);toast("Event link copied");}
@@ -1173,14 +1192,18 @@ $("copyBtn").onclick=async()=>{
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
 
 /* ── boot ─────────────────────────────────────────────────── */
+// Opened from an event link: start on the (empty) event page rather than flashing home
+// while the server connects.
+const linked=new URLSearchParams(location.search).get("e");
+const linkedId=linked&&/^[a-z0-9]{4,32}$/.test(linked)?linked:null;
+if(linkedId)route={page:"event",id:linkedId};
 renderAll();
 (async()=>{
   try{store=await connectServer();}
   catch(e){console.error(e);store=null;bootErr=(e&&e.message)||"unreachable";}
-  if(!store){renderAll();return;}
+  if(!store){route={page:"home",id:null};renderAll();return;}
   myId=store.myId;
-  const id=new URLSearchParams(location.search).get("e");
-  if(id&&/^[a-z0-9]{4,32}$/.test(id))openEvent(id,false);else renderAll();
+  if(linkedId)openEvent(linkedId,false);else renderAll();
 })();
 </script>
 </body>
